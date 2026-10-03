@@ -309,3 +309,5 @@ CONTEXT.md                   this file
   EST. Logo favicons replace the Vite icon.
 - v11 Mobile fixes: carousel caption and controls moved off the photo on
   phones (plus swipe), pricing tiers single column on phones.
+- v12 Mobile nav drops "Home" (logo links home) and uses 13 to 14px text.
+  Carousel bar fits 320px phones: dots hide below 400px, 36px buttons.

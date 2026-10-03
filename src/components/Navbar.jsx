@@ -2,7 +2,7 @@ import { Link, NavLink, useLocation } from 'react-router-dom'
 import logoMark from '../assets/logo-mark.png'
 
 const links = [
-  { to: '/', label: 'Home', end: true },
+  { to: '/', label: 'Home', end: true, desktopOnly: true }, // the logo already links home on phones
   { to: '/services', label: 'Services' },
   { to: '/pricing', label: 'Pricing' },
   { to: '/order', label: 'Place Order', mobileLabel: 'Order' },
@@ -70,8 +70,8 @@ export default function Navbar() {
         </div>
 
         {/* Mobile nav */}
-        <nav aria-label="Primary mobile" className="flex shrink-0 items-center gap-2.5 text-xs text-ink-body min-[400px]:gap-3 md:hidden">
-          {links.map((l) => (
+        <nav aria-label="Primary mobile" className="flex shrink-0 items-center gap-3 text-[13px] text-ink-body min-[400px]:gap-4 min-[400px]:text-sm md:hidden">
+          {links.filter((l) => !l.desktopOnly).map((l) => (
             <NavLink
               key={l.to}
               to={l.to}
