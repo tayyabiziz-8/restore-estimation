@@ -32,13 +32,37 @@ const slides = [
   },
 ]
 
+function Chevron({ dir }) {
+  return (
+    <svg viewBox="0 0 16 16" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+      <path d={dir === 'left' ? 'M10 3 5 8l5 5' : 'M6 3l5 5-5 5'} strokeLinecap="square" />
+    </svg>
+  )
+}
+
+function Caption({ s, className = '' }) {
+  return (
+    <div className={className}>
+      <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-brass-bright sm:text-xs">{s.plate}</p>
+      <h3 className="mt-1.5 font-display text-lg leading-snug text-cream sm:text-xl md:text-2xl">{s.title}</h3>
+      <p className="mt-1.5 max-w-md text-sm leading-relaxed text-cream-dim">{s.body}</p>
+    </div>
+  )
+}
+
+/**
+ * Phones: photo on top, caption on a solid navy panel underneath (text over
+ * a busy photo was hard to read), controls in the bottom bar, swipe to
+ * change slides. md and up: caption overlays the photo on a gradient.
+ */
 export default function Carousel() {
   const [index, setIndex] = useState(0)
   const [paused, setPaused] = useState(false)
   const timerRef = useRef(null)
+  const touchX = useRef(null)
 
   const go = useCallback((i) => {
-    setIndex((prev) => (i + slides.length) % slides.length)
+    setIndex((i + slides.length) % slides.length)
   }, [])
 
   useEffect(() => {
@@ -49,6 +73,19 @@ export default function Carousel() {
     return () => clearInterval(timerRef.current)
   }, [index, paused, go])
 
+  const onTouchStart = (e) => {
+    touchX.current = e.touches[0].clientX
+  }
+  const onTouchEnd = (e) => {
+    if (touchX.current === null) return
+    const dx = e.changedTouches[0].clientX - touchX.current
+    if (Math.abs(dx) > 40) go(dx < 0 ? index + 1 : index - 1)
+    touchX.current = null
+  }
+
+  const arrowClass =
+    'flex h-10 w-10 items-center justify-center border border-line bg-paper text-ink-heading transition-colors hover:border-brass hover:text-brass'
+
   return (
     <div
       className="border border-line"
@@ -58,7 +95,11 @@ export default function Carousel() {
       aria-roledescription="carousel"
       aria-label="Field work examples"
     >
-      <div className="relative aspect-[4/3] w-full sm:aspect-[16/9] xl:aspect-[21/9] overflow-hidden bg-ink-900">
+      <div
+        className="relative aspect-[16/10] w-full overflow-hidden bg-ink-900 sm:aspect-[16/9] xl:aspect-[21/9]"
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
+      >
         {slides.map((s, i) => (
           <div
             key={s.plate}
@@ -71,36 +112,29 @@ export default function Carousel() {
               className="h-full w-full object-cover"
               loading={i === 0 ? 'eager' : 'lazy'}
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-ink-900/90 via-ink-900/15 to-transparent" />
-            <div className="absolute inset-x-0 bottom-0 p-6 md:p-8">
-              <p className="text-xs font-medium uppercase tracking-[0.14em] text-brass-bright">{s.plate}</p>
-              <h3 className="mt-2 font-display text-xl text-cream md:text-2xl">{s.title}</h3>
-              <p className="mt-1 max-w-md text-sm text-cream-dim">{s.body}</p>
-            </div>
+            <div className="absolute inset-0 hidden bg-gradient-to-t from-ink-900/90 via-ink-900/20 to-transparent md:block" />
+            <Caption s={s} className="absolute inset-x-0 bottom-0 hidden p-8 md:block" />
           </div>
         ))}
-
-        <button
-          type="button"
-          onClick={() => go(index - 1)}
-          aria-label="Previous example"
-          className="absolute left-3 top-1/2 -translate-y-1/2 border border-cream/25 bg-ink-900/60 px-2.5 py-2 text-cream transition-colors hover:border-brass-bright hover:text-brass-bright"
-        >
-          ‹
-        </button>
-        <button
-          type="button"
-          onClick={() => go(index + 1)}
-          aria-label="Next example"
-          className="absolute right-3 top-1/2 -translate-y-1/2 border border-cream/25 bg-ink-900/60 px-2.5 py-2 text-cream transition-colors hover:border-brass-bright hover:text-brass-bright"
-        >
-          ›
-        </button>
       </div>
 
-      <div className="flex items-center justify-between border-t border-line bg-paper-alt px-4 py-3 text-xs text-ink-dim">
-        <span>{index + 1} of {slides.length}</span>
-        <div className="flex gap-2">
+      {/* Phone caption panel. All captions share one grid cell, so the panel
+          keeps the height of the longest one and nothing jumps. */}
+      <div className="grid bg-ink-900 px-5 py-5 md:hidden" aria-live="polite">
+        {slides.map((s, i) => (
+          <Caption
+            key={s.plate}
+            s={s}
+            className={`col-start-1 row-start-1 transition-opacity duration-500 ${i === index ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
+          />
+        ))}
+      </div>
+
+      <div className="flex items-center justify-between gap-4 border-t border-line bg-paper-alt px-3 py-2.5 sm:px-4">
+        <span className="min-w-[3.5rem] text-xs tabular-nums text-ink-dim">
+          {String(index + 1).padStart(2, '0')} / {String(slides.length).padStart(2, '0')}
+        </span>
+        <div className="flex gap-1.5 sm:gap-2">
           {slides.map((s, i) => (
             <button
               key={s.plate}
@@ -108,9 +142,19 @@ export default function Carousel() {
               onClick={() => go(i)}
               aria-label={`Go to ${s.plate}`}
               aria-current={i === index}
-              className={`h-1.5 w-6 transition-colors ${i === index ? 'bg-brass' : 'bg-line'}`}
-            />
+              className="flex h-6 items-center"
+            >
+              <span className={`block h-1 w-5 transition-colors sm:w-6 ${i === index ? 'bg-brass' : 'bg-line'}`} />
+            </button>
           ))}
+        </div>
+        <div className="flex gap-2">
+          <button type="button" onClick={() => go(index - 1)} aria-label="Previous example" className={arrowClass}>
+            <Chevron dir="left" />
+          </button>
+          <button type="button" onClick={() => go(index + 1)} aria-label="Next example" className={arrowClass}>
+            <Chevron dir="right" />
+          </button>
         </div>
       </div>
     </div>

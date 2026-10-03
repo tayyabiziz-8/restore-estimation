@@ -21,20 +21,20 @@ export default function Pricing() {
         order. Large Loss jobs are quoted first.
       </p>
 
-      <Reveal variant="scale" className="mt-8 grid grid-cols-2 gap-px overflow-hidden border border-line bg-line lg:grid-cols-4">
+      <Reveal variant="scale" className="mt-8 grid grid-cols-1 gap-px overflow-hidden border border-line bg-line sm:grid-cols-2 lg:grid-cols-4">
         {tiers.map((t) => (
-          <div key={t.code} className={`flex flex-col bg-paper p-4 sm:p-6 lg:p-8 ${t.highlight ? 'ring-1 ring-inset ring-brass' : ''}`}>
-            <div className="flex items-center justify-between text-xs text-ink-dim sm:text-sm">
+          <div key={t.code} className={`flex flex-col bg-paper p-6 lg:p-8 ${t.highlight ? 'ring-1 ring-inset ring-brass' : ''}`}>
+            <div className="flex items-center justify-between text-sm text-ink-dim">
               <span className="font-medium text-brass">{t.code}</span>
-              {t.highlight && <span className="hidden text-xs font-medium uppercase tracking-wide text-brass sm:inline">Most ordered</span>}
+              {t.highlight && <span className="text-xs font-medium uppercase tracking-wide text-brass">Most ordered</span>}
             </div>
-            <h2 className="mt-3 font-display text-base text-ink-heading sm:text-xl">{t.name}</h2>
-            <p className="mt-3 font-display text-2xl text-ink-heading sm:text-3xl">
+            <h2 className="mt-3 font-display text-xl text-ink-heading">{t.name}</h2>
+            <p className="mt-3 font-display text-3xl text-ink-heading">
               {t.price}
-              <span className="ml-1 text-xs font-normal text-ink-dim sm:text-sm">{t.unit}</span>
+              <span className="ml-1 text-sm font-normal text-ink-dim">{t.unit}</span>
             </p>
-            <p className="mt-3 text-xs leading-relaxed text-ink-body sm:text-sm">{t.body}</p>
-            <ul className="mt-4 space-y-1.5 text-xs text-ink-body sm:text-sm">
+            <p className="mt-3 text-sm leading-relaxed text-ink-body">{t.body}</p>
+            <ul className="mb-6 mt-4 space-y-1.5 text-sm text-ink-body">
               {t.features.map((f) => (
                 <li key={f} className="flex items-center gap-2">
                   <span className="h-px w-3 shrink-0 bg-brass/70" />
@@ -44,7 +44,7 @@ export default function Pricing() {
             </ul>
             <NavLink
               to={`/order?tier=${t.id}`}
-              className="mt-6 bg-brass py-2 text-center text-xs font-medium text-paper transition-colors hover:bg-ink-heading sm:text-sm"
+              className="mt-auto bg-brass py-3 text-center text-sm font-medium text-paper transition-colors hover:bg-ink-heading lg:py-2.5"
             >
               {t.amount ? 'Order this tier' : 'Request a quote'}
             </NavLink>

@@ -101,7 +101,8 @@ User develops on Windows with PowerShell and VS Code.
   one by one: they sit on a hairline background that would show through.
   Reduced motion shows everything immediately.
 - **Spacing kept tight.** Section padding is py-10/12 rather than py-16/24.
-  Pricing tiers are 2-up on phones, 4-up on large screens.
+  Pricing tiers are 1 column on phones, 2-up from 640px, 4-up on large
+  screens (2-up on phones was too cramped).
 
 ## Content decisions
 
@@ -185,7 +186,11 @@ Client chose upfront online payment (Option B) over Stripe Invoicing.
 ## Carousel
 
 `src/components/Carousel.jsx`, four slides, auto-advance 5.5s, pauses on hover,
-respects reduced motion, prev/next buttons and dot indicators. Captions use
+respects reduced motion. Controls live in the bottom bar (01 / 04 counter,
+dots, square prev/next buttons with SVG chevrons), not over the photo.
+Below md the caption sits on a navy panel under the photo (captions share
+one grid cell so the height never jumps) and slides can be swiped; md and
+up the caption overlays the photo on a gradient. Captions use
 "Exhibit 01" to "Exhibit 04".
 
 Images are pinned Pexels photos (free under the Pexels License, no attribution
@@ -302,3 +307,5 @@ CONTEXT.md                   this file
 - v10 Copy: step 01 "Submit the details", stats 24 to 48 hours and
   3,100+ (variance stat removed, band is 2 columns), hours 9 AM to 6 PM
   EST. Logo favicons replace the Vite icon.
+- v11 Mobile fixes: carousel caption and controls moved off the photo on
+  phones (plus swipe), pricing tiers single column on phones.
