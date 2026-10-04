@@ -17,6 +17,7 @@ import {
   totalOf,
 } from '../data/pricing'
 import { newOrderRef, startCheckout, savePendingCheckout } from '../lib/checkout'
+import usePageMeta from '../lib/usePageMeta'
 
 // Reuses the same EmailJS project as the contact form, set these once.
 // See README.md. Note: sending file attachments (scope notes, images,
@@ -76,6 +77,11 @@ const checklist = [
 ]
 
 export default function PlaceOrder() {
+  usePageMeta({
+    title: 'Place an order',
+    description: 'Send your scope notes, photos and measurements and get a carrier-ready Xactimate estimate. Pay securely online with Stripe.',
+    path: '/order',
+  })
   const [searchParams] = useSearchParams()
   const [status, setStatus] = useState('idle') // idle | sending | redirecting | quoted | error | payError
   const [attachmentError, setAttachmentError] = useState('')

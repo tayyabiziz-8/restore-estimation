@@ -183,15 +183,33 @@ Client chose upfront online payment (Option B) over Stripe Invoicing.
   module (pricing, validation, webhook signature path). Real Stripe test
   mode still needs a run-through.
 
+## SEO
+
+- `index.html`: home title and description, canonical, Open Graph and
+  Twitter tags with `public/og-image.png` (1200x630, logo on navy), and
+  JSON-LD ProfessionalService (email, phone, hours). These static tags are
+  what link previews read, since they do not run JavaScript.
+- `src/lib/usePageMeta.js`: per-page title, description, canonical, robots
+  (order success/cancelled are noindex).
+- `public/robots.txt` and `public/sitemap.xml` use
+  https://restoreestimation.com (the apex is the primary domain).
+- After launch: verify the domain in Google Search Console (DNS TXT record
+  in Squarespace), submit the sitemap, request indexing of the home page.
+
 ## Carousel
 
-`src/components/Carousel.jsx`, four slides, auto-advance 5.5s, pauses on hover,
-respects reduced motion. Controls live in the bottom bar (01 / 04 counter,
+`src/components/Carousel.jsx`, four slides, auto-advance every 5s (timer
+restarts after any manual change). No hover pause (it looked frozen and
+stuck on phones); an explicit pause/play button in the bar instead.
+Reduced motion still rotates, as an instant swap. Controls live in the bottom bar (01 / 04 counter,
 dots, square prev/next buttons with SVG chevrons), not over the photo.
 Below md the caption sits on a navy panel under the photo (captions share
 one grid cell so the height never jumps) and slides can be swiped; md and
-up the caption overlays the photo on a gradient. Captions use
-"Exhibit 01" to "Exhibit 04".
+up the caption overlays the photo on a gradient. Section label is
+"What we document" and slide labels are claim types (Water damage, On-site
+measurement, Fire and smoke, Estimate delivery), because the photos are
+stock: do not imply they are the client's jobs. Switch back to "Recent
+field work" only with the client's own photos.
 
 Images are pinned Pexels photos (free under the Pexels License, no attribution
 required), hotlinked from `images.pexels.com`:
@@ -311,3 +329,5 @@ CONTEXT.md                   this file
   phones (plus swipe), pricing tiers single column on phones.
 - v12 Mobile nav drops "Home" (logo links home) and uses 13 to 14px text.
   Carousel bar fits 320px phones: dots hide below 400px, 36px buttons.
+- v13 Carousel relabelled (stock photos), 5s autoplay with pause button.
+  SEO: per-page meta, OG image, JSON-LD, robots.txt, sitemap.xml.

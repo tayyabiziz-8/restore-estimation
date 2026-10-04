@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom'
 import SectionLabel from '../components/SectionLabel'
 import Reveal from '../components/Reveal'
+import usePageMeta from '../lib/usePageMeta'
 
 const services = [
   {
@@ -42,6 +43,11 @@ const services = [
 ]
 
 export default function Services() {
+  usePageMeta({
+    title: 'Services',
+    description: 'Xactimate estimates, sketches, takeoffs, estimate reviews and supplements for water, fire, mold, roof and large-loss property claims.',
+    path: '/services',
+  })
   return (
     <div className="mx-auto max-w-site px-6 py-10 md:px-10 xl:px-16 md:py-14">
       <SectionLabel>Schedule of services</SectionLabel>

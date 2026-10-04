@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import LegalPage from '../components/LegalPage'
 import { SITE } from '../siteConfig'
+import usePageMeta from '../lib/usePageMeta'
 
 const summary = [
   'We write estimates from the photos, notes, and measurements you send.',
@@ -169,6 +170,11 @@ const sections = [
 ]
 
 export default function Terms() {
+  usePageMeta({
+    title: 'Terms and Conditions',
+    description: 'The terms for using restoreestimation.com and ordering property claim estimates from Restore Estimation.',
+    path: '/terms',
+  })
   return (
     <LegalPage
       current="/terms"

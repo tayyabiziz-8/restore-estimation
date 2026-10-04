@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+// Stock photos, so labels describe the type of work, not "our jobs" (the
+// Pexels licence bars misleading use). Switch the home heading back to
+// "Recent field work" once these are replaced with the client's own photos.
 // Images are specific, curated photos from Pexels (free to use, no
 // attribution required under the Pexels License: pexels.com/license).
 // Each URL is pinned to one photo ID rather than a random keyword search,
@@ -7,25 +10,25 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 // whenever the client has them, see README.md.
 const slides = [
   {
-    plate: 'Exhibit 01',
+    plate: 'Water damage',
     title: 'Water damage, documented room by room',
     body: 'Moisture readings, affected materials, and drying equipment logged to Xactimate line-item standard.',
     img: 'https://images.pexels.com/photos/18302377/pexels-photo-18302377.jpeg?auto=compress&cs=tinysrgb&w=1600&h=900&fit=crop',
   },
   {
-    plate: 'Exhibit 02',
+    plate: 'On-site measurement',
     title: 'On-site measurement and scoping',
     body: 'Laser-measured floor plans and elevations, cross-checked against carrier scope requirements.',
     img: 'https://images.pexels.com/photos/5476051/pexels-photo-5476051.jpeg?auto=compress&cs=tinysrgb&w=1600&h=900&fit=crop',
   },
   {
-    plate: 'Exhibit 03',
+    plate: 'Fire and smoke',
     title: 'Fire and smoke restoration scoping',
     body: 'Char depth, soot pattern, and structural assessment translated into defensible claim narrative.',
     img: 'https://images.pexels.com/photos/10252687/pexels-photo-10252687.jpeg?auto=compress&cs=tinysrgb&w=1600&h=900&fit=crop',
   },
   {
-    plate: 'Exhibit 04',
+    plate: 'Estimate delivery',
     title: 'Carrier-ready estimate delivery',
     body: 'Finished Xactimate estimates, photo packets, and sketches delivered within 48 hours.',
     img: 'https://images.pexels.com/photos/7054757/pexels-photo-7054757.jpeg?auto=compress&cs=tinysrgb&w=1600&h=900&fit=crop',
@@ -36,6 +39,23 @@ function Chevron({ dir }) {
   return (
     <svg viewBox="0 0 16 16" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
       <path d={dir === 'left' ? 'M10 3 5 8l5 5' : 'M6 3l5 5-5 5'} strokeLinecap="square" />
+    </svg>
+  )
+}
+
+function PauseIcon() {
+  return (
+    <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="currentColor" aria-hidden="true">
+      <rect x="4" y="3" width="2.5" height="10" />
+      <rect x="9.5" y="3" width="2.5" height="10" />
+    </svg>
+  )
+}
+
+function PlayIcon() {
+  return (
+    <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="currentColor" aria-hidden="true">
+      <path d="M5 3l8 5-8 5z" />
     </svg>
   )
 }
@@ -55,6 +75,8 @@ function Caption({ s, className = '' }) {
  * a busy photo was hard to read), controls in the bottom bar, swipe to
  * change slides. md and up: caption overlays the photo on a gradient.
  */
+const AUTOPLAY_MS = 5000
+
 export default function Carousel() {
   const [index, setIndex] = useState(0)
   const [paused, setPaused] = useState(false)
@@ -65,12 +87,16 @@ export default function Carousel() {
     setIndex((i + slides.length) % slides.length)
   }, [])
 
+  // Auto-advance every 5 seconds. The timer restarts whenever the slide
+  // changes, so a manual click or swipe always gets a full 5 seconds.
+  // No pause on hover (that made it look frozen whenever the mouse rested
+  // on it, and stuck on phones after a tap). Instead there is an explicit
+  // pause / play button, which also covers WCAG 2.2.2 for moving content.
+  // Reduced-motion users still get the rotation, as an instant swap.
   useEffect(() => {
     if (paused) return undefined
-    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    if (prefersReduced) return undefined
-    timerRef.current = setInterval(() => go(index + 1), 5500)
-    return () => clearInterval(timerRef.current)
+    timerRef.current = setTimeout(() => go(index + 1), AUTOPLAY_MS)
+    return () => clearTimeout(timerRef.current)
   }, [index, paused, go])
 
   const onTouchStart = (e) => {
@@ -89,8 +115,6 @@ export default function Carousel() {
   return (
     <div
       className="border border-line"
-      onMouseEnter={() => setPaused(true)}
-      onMouseLeave={() => setPaused(false)}
       role="region"
       aria-roledescription="carousel"
       aria-label="Field work examples"
@@ -103,7 +127,7 @@ export default function Carousel() {
         {slides.map((s, i) => (
           <div
             key={s.plate}
-            className={`absolute inset-0 transition-opacity duration-700 ${i === index ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
+            className={`absolute inset-0 transition-opacity duration-700 motion-reduce:transition-none ${i === index ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
             aria-hidden={i !== index}
           >
             <img
@@ -149,6 +173,15 @@ export default function Carousel() {
           ))}
         </div>
         <div className="flex shrink-0 gap-2">
+          <button
+            type="button"
+            onClick={() => setPaused((p) => !p)}
+            aria-label={paused ? 'Play slideshow' : 'Pause slideshow'}
+            aria-pressed={paused}
+            className={arrowClass}
+          >
+            {paused ? <PlayIcon /> : <PauseIcon />}
+          </button>
           <button type="button" onClick={() => go(index - 1)} aria-label="Previous example" className={arrowClass}>
             <Chevron dir="left" />
           </button>

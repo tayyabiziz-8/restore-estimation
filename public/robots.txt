@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /order/success
+Disallow: /order/cancelled
+
+Sitemap: https://restoreestimation.com/sitemap.xml

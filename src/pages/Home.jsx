@@ -5,6 +5,7 @@ import SectionLabel from '../components/SectionLabel'
 import BlueprintHero from '../components/BlueprintHero'
 import Reveal from '../components/Reveal'
 import { SITE } from '../siteConfig'
+import usePageMeta from '../lib/usePageMeta'
 
 const steps = [
   {
@@ -30,6 +31,11 @@ const stats = [
 ]
 
 export default function Home() {
+  usePageMeta({
+    title: null,
+    description: 'Xactimate-ready estimates for water, fire, mold, roof and large-loss claims. Written by certified estimators for restoration contractors, delivered in 24 to 48 hours.',
+    path: '/',
+  })
   return (
     <div>
       {/* Hero */}
@@ -72,7 +78,7 @@ export default function Home() {
       {/* Carousel */}
       <section className="mx-auto max-w-site px-6 py-12 md:px-10 xl:px-16">
         <Reveal variant="fade">
-          <SectionLabel>Recent field work</SectionLabel>
+          <SectionLabel>What we document</SectionLabel>
         </Reveal>
         <Reveal variant="scale" delay={100}>
           <Carousel />

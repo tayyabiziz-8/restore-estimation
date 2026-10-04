@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import LegalPage from '../components/LegalPage'
 import { SITE } from '../siteConfig'
+import usePageMeta from '../lib/usePageMeta'
 
 const summary = [
   'Cancel before we start and you get a full refund.',
@@ -100,6 +101,11 @@ const sections = [
 ]
 
 export default function RefundPolicy() {
+  usePageMeta({
+    title: 'Refund Policy',
+    description: 'When you can cancel an estimate order, when we fix mistakes free, and how refunds work at Restore Estimation.',
+    path: '/refund-policy',
+  })
   return (
     <LegalPage
       current="/refund-policy"

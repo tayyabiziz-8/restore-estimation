@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { SITE } from '../siteConfig'
 import { formatUSD } from '../data/pricing'
+import usePageMeta from '../lib/usePageMeta'
 import { clearPendingCheckout, loadPendingCheckout, startCheckout } from '../lib/checkout'
 
 function Shell({ label, title, children }) {
@@ -19,6 +20,7 @@ const secondary = 'inline-block border border-line px-6 py-3 text-sm font-medium
 
 /** /order/success?session_id=cs_... : confirms with Stripe before saying "paid". */
 export function OrderSuccess() {
+  usePageMeta({ title: 'Order confirmation', noindex: true })
   const [params] = useSearchParams()
   const sessionId = params.get('session_id')
   const [state, setState] = useState({ loading: true })
@@ -79,6 +81,7 @@ export function OrderSuccess() {
 
 /** /order/cancelled?ref=RE-... : the customer backed out of Stripe Checkout. */
 export function OrderCancelled() {
+  usePageMeta({ title: 'Payment not completed', noindex: true })
   const [params] = useSearchParams()
   const ref = params.get('ref') || ''
   const [pending] = useState(() => {

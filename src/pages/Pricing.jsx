@@ -2,6 +2,7 @@ import { NavLink } from 'react-router-dom'
 import SectionLabel from '../components/SectionLabel'
 import Reveal from '../components/Reveal'
 import { TIERS, ADDONS, formatUSD } from '../data/pricing'
+import usePageMeta from '../lib/usePageMeta'
 
 // Display fields derived from the shared price list
 const tiers = TIERS.map((t) => ({ ...t, price: t.amount ? formatUSD(t.amount) : 'Quoted', unit: 'per claim' }))
@@ -9,6 +10,11 @@ const addOns = ADDONS
 
 
 export default function Pricing() {
+  usePageMeta({
+    title: 'Pricing',
+    description: 'Simple per-claim pricing for Xactimate estimates: Minor Loss $85, Roof Damage $150, Total Loss $220. Large Loss quoted. No subscriptions.',
+    path: '/pricing',
+  })
   return (
     <div className="mx-auto max-w-site px-6 py-10 md:px-10 xl:px-16 md:py-14">
       <SectionLabel>Rate schedule</SectionLabel>

@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import LegalPage from '../components/LegalPage'
 import { SITE } from '../siteConfig'
+import usePageMeta from '../lib/usePageMeta'
 
 const summary = [
   'We only ask for what we need to reply to you or write your estimate.',
@@ -209,6 +210,11 @@ const sections = [
 ]
 
 export default function PrivacyPolicy() {
+  usePageMeta({
+    title: 'Privacy Policy',
+    description: 'How Restore Estimation collects, uses and protects the information you send through this website.',
+    path: '/privacy',
+  })
   return (
     <LegalPage
       current="/privacy"
