@@ -49,11 +49,10 @@ export const TIERS = [
 // checkout. The others happen after delivery and are billed separately.
 export const ADDONS = [
   { id: 'rush', code: 'A-01', label: 'Rush (same-day)', amount: 6000, rate: '+$60', checkout: true },
-  { id: 'onsite', code: 'A-02', label: 'On-site visit (within 50 mi.)', amount: 15000, rate: '+$150', checkout: true },
-  { id: 'revision', code: 'A-03', label: 'Estimate revision after carrier pushback', amount: 4000, rate: '$40', checkout: false },
-  { id: 'extraRoom', code: 'A-04', label: 'Additional room / area beyond tier', amount: 2500, rate: '$25 ea.', checkout: true },
-  { id: 'sketch', code: 'A-05', label: 'Sketch only (no full estimate)', amount: 4500, rate: '$45', checkout: false },
-  { id: 'supplement', code: 'A-06', label: 'Supplement to an existing, approved estimate', amount: 6000, rate: '$60', checkout: false },
+  { id: 'revision', code: 'A-02', label: 'Estimate revision after carrier pushback', amount: 4000, rate: '$40', checkout: false },
+  { id: 'extraRoom', code: 'A-03', label: 'Additional room / area beyond tier', amount: 2500, rate: '$25 ea.', checkout: true },
+  { id: 'sketch', code: 'A-04', label: 'Sketch only (no full estimate)', amount: 4500, rate: '$45', checkout: false },
+  { id: 'supplement', code: 'A-05', label: 'Supplement to an existing, approved estimate', amount: 6000, rate: '$60', checkout: false },
 ]
 
 export const MAX_EXTRA_ROOMS = 20
@@ -80,17 +79,13 @@ export function canAddRooms(id) {
  * Turn an order selection into priced line items.
  * Returns null if the tier is not payable online (quoted or unknown).
  */
-export function buildLineItems({ tierId, rush = false, onsite = false, extraRooms = 0 }) {
+export function buildLineItems({ tierId, rush = false, extraRooms = 0 }) {
   const tier = getTier(tierId)
   if (!tier || !tier.amount) return null
 
   const items = [{ name: `${tier.name} estimate`, amount: tier.amount, quantity: 1 }]
   if (rush) {
     const a = getAddon('rush')
-    items.push({ name: a.label, amount: a.amount, quantity: 1 })
-  }
-  if (onsite) {
-    const a = getAddon('onsite')
     items.push({ name: a.label, amount: a.amount, quantity: 1 })
   }
   const rooms = Number.isInteger(extraRooms) ? extraRooms : 0

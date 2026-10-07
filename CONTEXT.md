@@ -36,14 +36,18 @@ User develops on Windows with PowerShell and VS Code.
 - Contact details (confirmed v9, set in `src/siteConfig.js`): email
   admin@restoreestimation.com, phone +1 (646) 774-0661. Use the same in
   Stripe Public details and as the EmailJS delivery inbox.
-- Client supplied `logo.jpeg` (flat lavender-white background). Processed into
-  transparent PNGs: `src/assets/logo.png` (full lockup, dark ink, for light
-  backgrounds, currently unused), `src/assets/logo-light.png` (full lockup
-  recolored cream and amber for the dark footer, built from the JPEG at
-  higher resolution) and `src/assets/logo-mark.png` (icon only, navbar).
-  Never put the dark logo on the navy footer, it disappears.
-- Favicons (v10) in `public/`, made from the logo mark with the thin
-  dimension lines removed so it reads at 16px: `favicon.ico` (16/32/48),
+- Logo (v15): client supplied a new logo (house outline, rising arrow with
+  a check, document icon; tagline "XACTIMATE ESTIMATION SERVICES") in green
+  and orange. It was recoloured to the site scheme: green -> navy #1a2f42,
+  orange -> tan #ad7a45, grey "ESTIMATION" -> slate #4a5866. Original is
+  `src/assets/logo.jpeg`. Derived transparent PNGs: `logo.png` (dark
+  lockup, light backgrounds, currently unused), `logo-light.png` (cream /
+  pale slate / brighter tan, for the navy footer) and `logo-mark.png`
+  (icon only, navbar). Never put the dark logo on the navy footer. If the
+  logo changes, redo the background knockout and recolour, do not drop
+  the raw JPEG in. Old "Property Claim Expert" tagline is retired; page
+  titles use "Xactimate Estimation Services".
+- Favicons (rebuilt v15 from the new mark) in `public/`: `favicon.ico` (16/32/48),
   `favicon.svg` (switches to a cream mark in dark mode), `favicon-32.png`,
   `apple-touch-icon.png`, `icon-192/512.png` + `site.webmanifest`. The
   Vite default icon and unused `icons.svg` were removed. Originals kept in
@@ -116,8 +120,9 @@ Pricing tiers (Pricing.jsx and the tier dropdown in PlaceOrder.jsx must match):
 | Large Loss | Quoted |
 
 Minor Loss and Total Loss carried over the earlier Single Room and Full Loss
-prices. Confirm these with the client. Add-ons table has codes A-01 to A-06
-(rush, on-site visit, revision, extra room, sketch only, supplement).
+prices. Confirm these with the client. Add-ons table has codes A-01 to A-05
+(rush, revision, extra room, sketch only, supplement). No on-site visits
+yet: the service is remote, and Terms say so.
 
 Services: six entries (S-01 to S-06). S-05 covers estimate review and
 supplements. The supplement checkbox and claim-number field were removed from
@@ -149,10 +154,16 @@ honeypot field, and EmailJS.
   - **At least one of Images or a Link to photos is required.** This is
     checked manually in `onSubmit` (file inputs are not Formik state), with an
     inline error and scroll to the field.
-- EmailJS IDs are placeholders in both files (`YOUR_SERVICE_ID`,
-  `YOUR_TEMPLATE_ID`, `YOUR_ORDER_TEMPLATE_ID`, `YOUR_PUBLIC_KEY`). Nothing
-  sends until real values are pasted in. Template variable names are listed in
-  README.md. Attachment size limits depend on the EmailJS plan.
+- EmailJS IDs come from `VITE_EMAILJS_*` env vars via `src/lib/emailjs.js`
+  (public by design; the private key is server-only). Setup guide and
+  copy-paste templates (contact, order with Form File Attachments,
+  payment): `docs/emailjs-setup.md`. Free plan is not enough (2 templates,
+  no attachments); Professional ($15, 2 MB) recommended.
+- Attachments travel inside the email, so the order form checks the total
+  file size against `VITE_EMAILJS_ATTACHMENT_LIMIT_KB` (default 2048) and
+  asks for a photo link when over. Photo links are the recommended path
+  for full photo sets. If bigger uploads are ever needed, move files to
+  storage (e.g. Vercel Blob) and email links instead.
 
 ## Payments (Stripe, v8)
 
@@ -166,8 +177,9 @@ Client chose upfront online payment (Option B) over Stripe Invoicing.
   `/api/checkout-status`. `/order/cancelled` can reopen checkout from
   sessionStorage. `/api/stripe-webhook` (signature verified, raw body) is
   the real paid signal and emails the office via EmailJS REST.
-- Payable online: Minor, Total, Roof tiers + rush, on-site visit, extra
-  rooms (Minor and Total only, max 20). Quoted: Large Loss, "Not sure yet",
+- Payable online: Minor, Total, Roof tiers + rush, extra rooms (Minor and
+  Total only, max 20). On-site visit was removed (not offered yet, v14);
+  add-on codes renumbered A-01 to A-05. Quoted: Large Loss, "Not sure yet",
   plus revisions, supplements, sketch-only: paid later by Stripe Payment
   Link from the dashboard.
 - Pricing "Order this tier" links pass `?tier=<id>` to preselect.
@@ -331,3 +343,11 @@ CONTEXT.md                   this file
   Carousel bar fits 320px phones: dots hide below 400px, 36px buttons.
 - v13 Carousel relabelled (stock photos), 5s autoplay with pause button.
   SEO: per-page meta, OG image, JSON-LD, robots.txt, sitemap.xml.
+- v14 On-site visit removed everywhere (pricing, order form, checkout,
+  Terms, Refund, carousel slide 2 now "Measurements"). EmailJS moved to env
+  vars, attachment size guard, docs/emailjs-setup.md.
+- v15 New logo recoloured navy/tan and applied everywhere (navbar mark,
+  footer, favicons, OG image, titles). Footer blurb: "for restoration
+  contractors, public adjusters and homeowners". Order form no longer
+  preselects Total Loss: tier starts empty ("Select a tier", required);
+  `?tier=` from Pricing still preselects.

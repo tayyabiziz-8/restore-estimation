@@ -16,9 +16,9 @@ const slides = [
     img: 'https://images.pexels.com/photos/18302377/pexels-photo-18302377.jpeg?auto=compress&cs=tinysrgb&w=1600&h=900&fit=crop',
   },
   {
-    plate: 'On-site measurement',
-    title: 'On-site measurement and scoping',
-    body: 'Laser-measured floor plans and elevations, cross-checked against carrier scope requirements.',
+    plate: 'Measurements',
+    title: 'Floor plans and measurements',
+    body: 'Sketches and room measurements built from your photos, scans, and notes, cross-checked against carrier scope requirements.',
     img: 'https://images.pexels.com/photos/5476051/pexels-photo-5476051.jpeg?auto=compress&cs=tinysrgb&w=1600&h=900&fit=crop',
   },
   {
@@ -117,7 +117,7 @@ export default function Carousel() {
       className="border border-line"
       role="region"
       aria-roledescription="carousel"
-      aria-label="Field work examples"
+      aria-label="What we document"
     >
       <div
         className="relative aspect-[16/10] w-full overflow-hidden bg-ink-900 sm:aspect-[16/9] xl:aspect-[21/9]"

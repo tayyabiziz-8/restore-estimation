@@ -21,7 +21,7 @@ function setMeta(selector, attr, key, value) {
  */
 export default function usePageMeta({ title, description, path, noindex = false }) {
   useEffect(() => {
-    document.title = title ? `${title} | ${SITE.name}` : `${SITE.name} | Property Claim Expert`
+    document.title = title ? `${title} | ${SITE.name}` : `${SITE.name} | Xactimate Estimation Services`
     if (description) {
       setMeta('meta[name="description"]', 'name', 'description', description)
       setMeta('meta[property="og:description"]', 'property', 'og:description', description)

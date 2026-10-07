@@ -6,7 +6,7 @@ const clip = (value, max) => String(value ?? '').trim().slice(0, max)
 
 /**
  * POST /api/create-checkout-session
- * Body: { orderRef, tierId, rush, onsite, extraRooms, name, email, address }
+ * Body: { orderRef, tierId, rush, extraRooms, name, email, address }
  * Returns: { url } to redirect the browser to Stripe Checkout.
  *
  * Prices are rebuilt here from src/data/pricing.js. Nothing the browser
@@ -38,7 +38,6 @@ export async function POST(request) {
   const items = buildLineItems({
     tierId,
     rush: body.rush === true,
-    onsite: body.onsite === true,
     extraRooms,
   })
 

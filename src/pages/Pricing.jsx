@@ -23,7 +23,7 @@ export default function Pricing() {
       </h1>
       <p className="mt-4 max-w-xl text-ink-body">
         No subscriptions or minimums. Pick the tier that matches the loss, add
-        rush or on-site service if needed, and pay securely by card when you
+        rush turnaround or extra rooms if needed, and pay securely by card when you
         order. Large Loss jobs are quoted first.
       </p>
 

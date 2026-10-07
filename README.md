@@ -57,7 +57,7 @@ are missing.
    separately, one for the order form (variables `name`, `email`,
    `address`, `lossType`, `tier`, `urgency`, `scopeNotesText`, `details`,
    `filesNote`, `consent`, `consent_at`, `order_ref`, `tier_label`,
-   `order_total`, `payment_status`, `onsite`, `extraRooms`, plus the file inputs
+   `order_total`, `payment_status`, `extraRooms`, plus the file inputs
    `scope_notes_file`, `measurements_file`, and `images` for attachments).
    Note each **Template ID**. Keep `consent` and `consent_at` in both
    templates: they are the record that the person accepted the policies.
@@ -132,6 +132,11 @@ src/
   index.css     design tokens (@theme) + global styles
 ```
 
+
+## EmailJS
+
+Full setup, plan choice and copy-paste templates: `docs/emailjs-setup.md`.
+IDs are read from `VITE_EMAILJS_*` env vars (`src/lib/emailjs.js`).
 
 ## Stripe payments
 

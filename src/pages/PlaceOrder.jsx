@@ -18,18 +18,18 @@ import {
 } from '../data/pricing'
 import { newOrderRef, startCheckout, savePendingCheckout } from '../lib/checkout'
 import usePageMeta from '../lib/usePageMeta'
+import { EMAILJS, emailjsConfigured, formatSize } from '../lib/emailjs'
 
-// Reuses the same EmailJS project as the contact form, set these once.
-// See README.md. Note: sending file attachments (scope notes, images,
-// measurements) depends on your EmailJS plan's attachment limits, check
-// their pricing page if large files fail to send.
-const EMAILJS_SERVICE_ID = 'YOUR_SERVICE_ID'
-const EMAILJS_ORDER_TEMPLATE_ID = 'YOUR_ORDER_TEMPLATE_ID'
-const EMAILJS_PUBLIC_KEY = 'YOUR_PUBLIC_KEY'
+// EmailJS IDs come from VITE_EMAILJS_* env vars (src/lib/emailjs.js,
+// docs/emailjs-setup.md). Files are sent as email attachments, so their
+// total size is capped by the EmailJS plan (EMAILJS.attachmentLimitKb).
 
 const lossTypes = ['Water damage', 'Fire & smoke', 'Roof damage', 'Mold remediation', 'Reconstruction takeoff', 'Estimate review / audit', 'Other']
 
+// Empty first option: the customer picks a tier themselves (no default
+// price is preselected). Links from the Pricing page still preselect via ?tier=.
 const tierOptions = [
+  { value: '', label: 'Select a tier', disabled: true },
   ...TIERS.map((t) => ({ value: t.id, label: t.amount ? `${t.name} (${formatUSD(t.amount)})` : `${t.name} (quoted)` })),
   { value: 'unsure', label: 'Not sure yet, quote me' },
 ]
@@ -55,9 +55,8 @@ const validationSchema = Yup.object({
   email: Yup.string().trim().email('Enter a valid email address').required('Please enter your email'),
   address: Yup.string().trim().required('Please enter the property address'),
   lossType: Yup.string().required(),
-  tier: Yup.string().required(),
+  tier: Yup.string().required('Please choose a tier'),
   urgency: Yup.string().required(),
-  onsite: Yup.boolean(),
   extraRooms: Yup.number()
     .typeError('Enter a number')
     .integer('Whole rooms only')
@@ -71,7 +70,7 @@ const validationSchema = Yup.object({
 })
 
 const checklist = [
-  { title: 'Photos', body: 'Upload images, or share a link (Encircle, Matterport, shared drive). One of the two is required.' },
+  { title: 'Photos', body: 'A link to the full set (Google Drive, Dropbox, CompanyCam, Encircle) works best. A few images can be uploaded directly.' },
   { title: 'Scope notes', body: 'Type them in, upload a file, or snap a photo of handwritten notes.' },
   { title: 'Measurements', body: 'A sketch export, laser scan, or room list if you have one.' },
 ]
@@ -91,7 +90,8 @@ export default function PlaceOrder() {
   const consentAtRef = useRef(null)
   const orderRefInput = useRef(null)
 
-  const startTier = tierOptions.some((o) => o.value === searchParams.get('tier')) ? searchParams.get('tier') : 'total'
+  const requestedTier = searchParams.get('tier')
+  const startTier = tierOptions.some((o) => o.value && o.value === requestedTier) ? requestedTier : ''
 
   const formik = useFormik({
     initialValues: {
@@ -101,7 +101,6 @@ export default function PlaceOrder() {
       lossType: lossTypes[0],
       tier: startTier,
       urgency: 'standard',
-      onsite: false,
       extraRooms: 0,
       scopeNotesText: '',
       details: '',
@@ -122,7 +121,26 @@ export default function PlaceOrder() {
         document.getElementById('images')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
         return
       }
+      // Attachments ride inside the email, so their total is capped by the
+      // EmailJS plan. Catch it here with a clear message instead of a failed send.
+      const files = Array.from(formRef.current?.querySelectorAll('input[type="file"]') || [])
+        .flatMap((input) => Array.from(input.files || []))
+      const totalBytes = files.reduce((sum, f) => sum + f.size, 0)
+      const limitBytes = EMAILJS.attachmentLimitKb * 1024
+      if (totalBytes > limitBytes) {
+        setAttachmentError(
+          `Your files add up to ${formatSize(totalBytes)}, over the ${formatSize(limitBytes)} upload limit. ` +
+            'Please share your photos as a link instead (Google Drive, Dropbox, CompanyCam, Encircle) and keep uploads to notes and measurements.',
+        )
+        document.getElementById('images')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        return
+      }
       setAttachmentError('')
+
+      if (!emailjsConfigured(EMAILJS.orderTemplateId)) {
+        setStatus('error')
+        return
+      }
 
       // One reference ties the order email, the Stripe payment and the
       // "payment received" email together.
@@ -136,8 +154,8 @@ export default function PlaceOrder() {
         // 1. Send the order and files first. Files cannot survive the trip
         //    to Stripe and back, so they go now, marked as awaiting payment.
         //    The office only starts work after the "payment received" email.
-        await emailjs.sendForm(EMAILJS_SERVICE_ID, EMAILJS_ORDER_TEMPLATE_ID, formRef.current, {
-          publicKey: EMAILJS_PUBLIC_KEY,
+        await emailjs.sendForm(EMAILJS.serviceId, EMAILJS.orderTemplateId, formRef.current, {
+          publicKey: EMAILJS.publicKey,
         })
       } catch (err) {
         console.error(err)
@@ -157,7 +175,6 @@ export default function PlaceOrder() {
         orderRef,
         tierId: values.tier,
         rush: values.urgency === 'rush',
-        onsite: values.onsite,
         extraRooms: canAddRooms(values.tier) ? Number(values.extraRooms) || 0 : 0,
         name: values.name,
         email: values.email,
@@ -187,10 +204,9 @@ export default function PlaceOrder() {
       buildLineItems({
         tierId: values.tier,
         rush: values.urgency === 'rush',
-        onsite: values.onsite,
         extraRooms: canAddRooms(values.tier) ? Math.max(0, Math.floor(Number(values.extraRooms) || 0)) : 0,
       }),
-    [values.tier, values.urgency, values.onsite, values.extraRooms],
+    [values.tier, values.urgency, values.extraRooms],
   )
   const total = totalOf(items)
   const tier = getTier(values.tier)
@@ -229,7 +245,7 @@ export default function PlaceOrder() {
   const submitLabel =
     status === 'sending' ? 'Sending your files…'
       : status === 'redirecting' ? 'Opening secure checkout…'
-        : payable ? `Continue to payment, ${formatUSD(total)}` : 'Request a quote'
+        : !values.tier ? 'Continue' : payable ? `Continue to payment, ${formatUSD(total)}` : 'Request a quote'
 
   return (
     <div className="mx-auto max-w-site px-6 py-10 md:px-10 md:py-14 xl:px-16">
@@ -243,7 +259,7 @@ export default function PlaceOrder() {
       <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-12 xl:grid-cols-[minmax(0,1fr)_380px] xl:gap-16">
         {/* Side panel: order summary and checklist. Beside the form on large screens. */}
         <aside className="space-y-6 lg:order-2 lg:sticky lg:top-24 lg:self-start">
-          <OrderSummary tier={tier} items={items} total={total} payable={payable} className="hidden lg:block" />
+          <OrderSummary tierChosen={Boolean(values.tier)} tier={tier} items={items} total={total} payable={payable} className="hidden lg:block" />
 
           <div className="border border-line bg-paper-alt p-5 sm:p-6">
             <h2 className="font-display text-lg text-ink-heading">Have these ready</h2>
@@ -303,39 +319,21 @@ export default function PlaceOrder() {
               name="tier"
               formik={formik}
               options={tierOptions}
-              hint={payable ? null : 'Quoted tiers are reviewed first. No payment today.'}
+              hint={!values.tier || payable ? null : 'Quoted tiers are reviewed first. No payment today.'}
             />
             <SelectField label="Turnaround" name="urgency" formik={formik} options={urgencyOptions} className="sm:col-span-2 xl:col-span-1" />
 
-            {payable && (
-              <div className="grid gap-6 sm:col-span-2 sm:grid-cols-2 xl:col-span-3">
-                <label htmlFor="onsite" className="flex cursor-pointer items-start gap-3 border border-line bg-paper px-4 py-3 text-sm text-ink-body">
-                  <input
-                    id="onsite"
-                    name="onsite"
-                    type="checkbox"
-                    value="Yes"
-                    checked={values.onsite}
-                    onChange={(e) => formik.setFieldValue('onsite', e.target.checked)}
-                    className="mt-1 h-4 w-4 shrink-0 accent-[#8f6035]"
-                  />
-                  <span>
-                    <span className="block font-medium text-ink-heading">On-site visit (+$150)</span>
-                    An estimator measures in person, within 50 miles.
-                  </span>
-                </label>
-                {canAddRooms(values.tier) && (
-                  <Field
-                    label={`Extra rooms beyond ${tier.includedRooms} included ($25 each)`}
-                    name="extraRooms"
-                    type="number"
-                    formik={formik}
-                    inputMode="numeric"
-                    min={0}
-                    max={MAX_EXTRA_ROOMS}
-                  />
-                )}
-              </div>
+            {payable && canAddRooms(values.tier) && (
+              <Field
+                label={`Extra rooms beyond ${tier.includedRooms} included ($25 each)`}
+                name="extraRooms"
+                type="number"
+                formik={formik}
+                inputMode="numeric"
+                min={0}
+                max={MAX_EXTRA_ROOMS}
+                className="sm:col-span-2 xl:col-span-1"
+              />
             )}
           </fieldset>
           <fieldset className="grid gap-6 sm:grid-cols-2">
@@ -375,7 +373,7 @@ export default function PlaceOrder() {
               name="images"
               accept="image/*"
               multiple
-              hint="Photos of the affected areas. You can select several."
+              hint={`Up to ${formatSize(EMAILJS.attachmentLimitKb * 1024)} in total across all uploads. For full photo sets, use a link.`}
             />
             <Field
               label="Or a link to your photos"
@@ -383,7 +381,7 @@ export default function PlaceOrder() {
               formik={formik}
               type="url"
               placeholder="Encircle, Matterport, or shared drive link"
-              hint="Images or a link: one of the two is required."
+              hint="Best for full photo sets. Images or a link: one of the two is required."
             />
             {attachmentError && (
               <p className="text-sm text-red-700 sm:col-span-2" role="alert">{attachmentError}</p>
@@ -409,7 +407,7 @@ export default function PlaceOrder() {
             <legend className="sr-only">5. Agreement and payment</legend>
 
             {/* Total near the button: the only summary on phones and tablets */}
-            <OrderSummary tier={tier} items={items} total={total} payable={payable} className="mb-6 lg:hidden" />
+            <OrderSummary tierChosen={Boolean(values.tier)} tier={tier} items={items} total={total} payable={payable} className="mb-6 lg:hidden" />
 
             <ConsentCheckbox formik={formik}>
               I agree to the <PolicyLink to="/terms">Terms and Conditions</PolicyLink> and{' '}
@@ -444,11 +442,16 @@ export default function PlaceOrder() {
   )
 }
 
-function OrderSummary({ tier, items, total, payable, className = '' }) {
+function OrderSummary({ tierChosen, tier, items, total, payable, className = '' }) {
   return (
     <div className={`border border-ink-heading/80 bg-paper p-5 sm:p-6 ${className}`}>
       <h2 className="font-display text-lg text-ink-heading">Order summary</h2>
-      {payable ? (
+      {!tierChosen ? (
+        <p className="mt-3 text-sm leading-relaxed text-ink-dim">
+          Choose a tier to see your total. Not sure which fits? Pick
+          "Not sure yet" and we will quote it.
+        </p>
+      ) : payable ? (
         <>
           <ul className="mt-4 space-y-2 text-sm">
             {items.map((i) => (
@@ -531,6 +534,7 @@ function Field({ label, name, formik, type = 'text', required, className = '', h
 }
 
 function SelectField({ label, name, formik, options, className = '', hint }) {
+  const error = formik.touched[name] && formik.errors[name]
   return (
     <div className={className}>
       <label htmlFor={name} className="block text-sm font-medium text-ink-heading">
@@ -547,13 +551,17 @@ function SelectField({ label, name, formik, options, className = '', hint }) {
         {options.map((o) => {
           const opt = typeof o === 'string' ? { value: o, label: o } : o
           return (
-            <option key={opt.value} value={opt.value}>
+            <option key={opt.value} value={opt.value} disabled={opt.disabled}>
               {opt.label}
             </option>
           )
         })}
       </select>
-      {hint && <p className="mt-1.5 text-xs text-ink-dim">{hint}</p>}
+      {error ? (
+        <p className="mt-1.5 text-sm text-red-700">{error}</p>
+      ) : (
+        hint && <p className="mt-1.5 text-xs text-ink-dim">{hint}</p>
+      )}
     </div>
   )
 }

@@ -24,11 +24,11 @@ export default function Footer() {
         {/* Brand */}
         <div className="col-span-2 lg:col-span-1">
           <Link to="/" aria-label="Restore Estimation home" className="inline-block">
-            <img src={logoLight} alt="Restore Estimation, property claim expert" className="h-14 w-auto sm:h-16" />
+            <img src={logoLight} alt="Restore Estimation, Xactimate estimation services" className="h-14 w-auto sm:h-16" />
           </Link>
           <p className="mt-5 max-w-sm text-sm leading-relaxed text-cream-dim">
             Certified claim estimators writing Xactimate-ready estimates for
-            restoration contractors and property-damage claims.
+            restoration contractors, public adjusters and homeowners.
           </p>
           <Link
             to="/order"

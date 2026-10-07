@@ -31,8 +31,8 @@ const sections = [
       <>
         <p>
           We prepare Xactimate estimates, sketches, takeoffs, reviews, and
-          supplements based on the information you provide. Unless you order
-          an on-site visit, we do not inspect the property ourselves.
+          supplements based on the photos, notes, and measurements you
+          provide. We work remotely and do not inspect the property ourselves.
         </p>
         <p>
           <strong>An estimate is a professional opinion of repair cost.</strong>{' '}
@@ -103,8 +103,8 @@ const sections = [
     content: (
       <ul>
         <li>If we made a mistake, we fix it free of charge.</li>
-        <li>Changes after carrier pushback are billed as a revision (see add-on A-03).</li>
-        <li>New damage found after approval is billed as a supplement (see add-on A-06).</li>
+        <li>Changes after carrier pushback are billed as a revision (see add-on A-02).</li>
+        <li>New damage found after approval is billed as a supplement (see add-on A-05).</li>
       </ul>
     ),
   },

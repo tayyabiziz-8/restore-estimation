@@ -4,14 +4,8 @@ import * as Yup from 'yup'
 import emailjs from '@emailjs/browser'
 import ConsentCheckbox, { PolicyLink } from './ConsentCheckbox'
 import { SITE } from '../siteConfig'
-
-// --- Configure this once ---
-// Create a free account at https://www.emailjs.com, connect the inbox that
-// should receive these messages, and drop the three IDs it gives you here.
-// See README.md for the two-minute setup walkthrough.
-const EMAILJS_SERVICE_ID = 'YOUR_SERVICE_ID'
-const EMAILJS_TEMPLATE_ID = 'YOUR_TEMPLATE_ID'
-const EMAILJS_PUBLIC_KEY = 'YOUR_PUBLIC_KEY'
+import { EMAILJS, emailjsConfigured } from '../lib/emailjs'
+// EmailJS IDs come from VITE_EMAILJS_* env vars, see docs/emailjs-setup.md.
 
 const inputClass =
   'mt-2 w-full border border-line bg-paper px-3 py-2.5 text-ink-heading outline-none transition-colors focus:border-brass'
@@ -33,11 +27,15 @@ export default function ContactForm() {
     onSubmit: async (values, { resetForm }) => {
       if (values.company) return // honeypot tripped, silently drop
 
+      if (!emailjsConfigured(EMAILJS.contactTemplateId)) {
+        setStatus('error')
+        return
+      }
       setStatus('sending')
       try {
         await emailjs.send(
-          EMAILJS_SERVICE_ID,
-          EMAILJS_TEMPLATE_ID,
+          EMAILJS.serviceId,
+          EMAILJS.contactTemplateId,
           {
             from_name: values.name,
             from_email: values.email,
@@ -45,7 +43,7 @@ export default function ContactForm() {
             consent: 'Yes',
             consent_at: new Date().toISOString(),
           },
-          { publicKey: EMAILJS_PUBLIC_KEY }
+          { publicKey: EMAILJS.publicKey }
         )
         setStatus('sent')
         resetForm()

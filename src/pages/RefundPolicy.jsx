@@ -63,7 +63,6 @@ const sections = [
     content: (
       <ul>
         <li>If we accept a rush order and miss the same-day deadline, we refund the rush fee.</li>
-        <li>If an on-site visit is cancelled by us, we refund that add-on in full.</li>
       </ul>
     ),
   },
