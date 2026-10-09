@@ -124,9 +124,10 @@ const sections = [
         <ul>
           <li>
             Service providers that help us run the business, such as Stripe
-            (which processes payments), EmailJS (which delivers form
-            submissions to our inbox), our email provider, and our website
-            host. They may only use it to provide their service
+            (which processes payments), Supabase (which stores orders and
+            uploaded files in the United States), EmailJS (which delivers
+            contact messages and order notifications to our inbox), our
+            email provider, and our website host. They may only use it to provide their service
             to us.
           </li>
           <li>Authorities, if the law requires us to.</li>
@@ -157,8 +158,10 @@ const sections = [
     title: 'How we protect it',
     content: (
       <p>
-        The site uses HTTPS, access to order files is limited to the estimators
-        working on them, and we delete files we no longer need. No system is
+        The site uses HTTPS. Orders and uploaded files are kept in private
+        storage: files are never public, and staff open them through
+        short-lived secure links after signing in. Access is limited to the
+        estimators working on them, and we delete files we no longer need. No system is
         perfectly secure, so please only send what the estimate requires.
       </p>
     ),

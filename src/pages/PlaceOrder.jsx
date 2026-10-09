@@ -2,7 +2,6 @@ import { useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useFormik } from 'formik'
 import * as Yup from 'yup'
-import emailjs from '@emailjs/browser'
 import SectionLabel from '../components/SectionLabel'
 import ConsentCheckbox, { PolicyLink } from '../components/ConsentCheckbox'
 import { SITE } from '../siteConfig'
@@ -16,15 +15,14 @@ import {
   isPayableTier,
   totalOf,
 } from '../data/pricing'
-import { newOrderRef, startCheckout, savePendingCheckout } from '../lib/checkout'
+import { createOrder, uploadFiles, startCheckout, savePendingCheckout } from '../lib/checkout'
 import usePageMeta from '../lib/usePageMeta'
-import { EMAILJS, emailjsConfigured, formatSize } from '../lib/emailjs'
+import { LOSS_TYPES, URGENCY, FILE_FIELDS, MAX_FILE_BYTES } from '../data/orderOptions'
 
-// EmailJS IDs come from VITE_EMAILJS_* env vars (src/lib/emailjs.js,
-// docs/emailjs-setup.md). Files are sent as email attachments, so their
-// total size is capped by the EmailJS plan (EMAILJS.attachmentLimitKb).
+// Orders are saved by /api/orders (Supabase), files upload straight to
+// private storage, then Stripe Checkout opens. See docs/backend-setup.md.
 
-const lossTypes = ['Water damage', 'Fire & smoke', 'Roof damage', 'Mold remediation', 'Reconstruction takeoff', 'Estimate review / audit', 'Other']
+const lossTypes = LOSS_TYPES
 
 // Empty first option: the customer picks a tier themselves (no default
 // price is preselected). Links from the Pricing page still preselect via ?tier=.
@@ -33,10 +31,7 @@ const tierOptions = [
   ...TIERS.map((t) => ({ value: t.id, label: t.amount ? `${t.name} (${formatUSD(t.amount)})` : `${t.name} (quoted)` })),
   { value: 'unsure', label: 'Not sure yet, quote me' },
 ]
-const urgencyOptions = [
-  { value: 'standard', label: 'Standard (48 hrs)' },
-  { value: 'rush', label: 'Rush, same day (+$60)' },
-]
+const urgencyOptions = URGENCY
 
 const inputClass =
   'mt-2 w-full border border-line bg-paper px-3 py-2.5 text-ink-heading outline-none transition-colors focus:border-brass'
@@ -70,7 +65,7 @@ const validationSchema = Yup.object({
 })
 
 const checklist = [
-  { title: 'Photos', body: 'A link to the full set (Google Drive, Dropbox, CompanyCam, Encircle) works best. A few images can be uploaded directly.' },
+  { title: 'Photos', body: 'Upload them here, or share a link (Google Drive, Dropbox, CompanyCam, Encircle). One of the two is required.' },
   { title: 'Scope notes', body: 'Type them in, upload a file, or snap a photo of handwritten notes.' },
   { title: 'Measurements', body: 'A sketch export, laser scan, or room list if you have one.' },
 ]
@@ -82,13 +77,14 @@ export default function PlaceOrder() {
     path: '/order',
   })
   const [searchParams] = useSearchParams()
-  const [status, setStatus] = useState('idle') // idle | sending | redirecting | quoted | error | payError
+  // idle | saving | uploading | redirecting | quoted | error | uploadError | payError
+  const [status, setStatus] = useState('idle')
   const [attachmentError, setAttachmentError] = useState('')
-  const [payError, setPayError] = useState('')
-  const [pendingPayload, setPendingPayload] = useState(null)
+  const [errorMessage, setErrorMessage] = useState('')
+  const [progress, setProgress] = useState({ done: 0, total: 0 })
+  const [order, setOrder] = useState(null) // { ref, payable } once saved
+  const [failedUploads, setFailedUploads] = useState([])
   const formRef = useRef(null)
-  const consentAtRef = useRef(null)
-  const orderRefInput = useRef(null)
 
   const requestedTier = searchParams.get('tier')
   const startTier = tierOptions.some((o) => o.value && o.value === requestedTier) ? requestedTier : ''
@@ -121,80 +117,93 @@ export default function PlaceOrder() {
         document.getElementById('images')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
         return
       }
-      // Attachments ride inside the email, so their total is capped by the
-      // EmailJS plan. Catch it here with a clear message instead of a failed send.
-      const files = Array.from(formRef.current?.querySelectorAll('input[type="file"]') || [])
-        .flatMap((input) => Array.from(input.files || []))
-      const totalBytes = files.reduce((sum, f) => sum + f.size, 0)
-      const limitBytes = EMAILJS.attachmentLimitKb * 1024
-      if (totalBytes > limitBytes) {
-        setAttachmentError(
-          `Your files add up to ${formatSize(totalBytes)}, over the ${formatSize(limitBytes)} upload limit. ` +
-            'Please share your photos as a link instead (Google Drive, Dropbox, CompanyCam, Encircle) and keep uploads to notes and measurements.',
-        )
+      // Files from the three upload fields, tagged with their kind.
+      const picked = FILE_FIELDS.flatMap((field) => {
+        const input = formRef.current?.querySelector(`input[name="${field.input}"]`)
+        return Array.from(input?.files || []).map((file) => ({ kind: field.kind, file }))
+      })
+      const tooBig = picked.find(({ file }) => file.size > MAX_FILE_BYTES)
+      if (tooBig) {
+        setAttachmentError(`${tooBig.file.name} is larger than 50 MB. Please share it as a link instead.`)
         document.getElementById('images')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
         return
       }
-      setAttachmentError('')
-
-      if (!emailjsConfigured(EMAILJS.orderTemplateId)) {
-        setStatus('error')
-        return
+      for (const field of FILE_FIELDS) {
+        if (picked.filter((p) => p.kind === field.kind).length > field.max) {
+          setAttachmentError(`Please upload at most ${field.max} ${field.label.toLowerCase()} files, or share them as a link.`)
+          return
+        }
       }
+      setAttachmentError('')
+      setErrorMessage('')
 
-      // One reference ties the order email, the Stripe payment and the
-      // "payment received" email together.
-      // Written straight into the hidden inputs because sendForm reads the DOM.
-      const orderRef = newOrderRef()
-      if (orderRefInput.current) orderRefInput.current.value = orderRef
-      if (consentAtRef.current) consentAtRef.current.value = new Date().toISOString()
-
-      setStatus('sending')
+      // 1. Save the order. The server validates everything again and
+      //    returns one signed upload slot per file.
+      setStatus('saving')
+      let saved
       try {
-        // 1. Send the order and files first. Files cannot survive the trip
-        //    to Stripe and back, so they go now, marked as awaiting payment.
-        //    The office only starts work after the "payment received" email.
-        await emailjs.sendForm(EMAILJS.serviceId, EMAILJS.orderTemplateId, formRef.current, {
-          publicKey: EMAILJS.publicKey,
+        saved = await createOrder({
+          name: values.name,
+          email: values.email,
+          address: values.address,
+          lossType: values.lossType,
+          tier: values.tier,
+          urgency: values.urgency,
+          extraRooms: canAddRooms(values.tier) ? Number(values.extraRooms) || 0 : 0,
+          scopeNotes: values.scopeNotesText,
+          photoLink: values.filesNote,
+          details: values.details,
+          consent: values.consent,
+          website: values.website,
+          files: picked.map(({ kind, file }) => ({ kind, name: file.name, size: file.size, type: file.type })),
         })
       } catch (err) {
-        console.error(err)
+        setErrorMessage(err.message)
         setStatus('error')
         return
       }
+      setOrder({ ref: saved.ref, payable: saved.payable })
 
-      // Quoted tiers stop here: we reply with a quote and a payment link.
-      if (!isPayableTier(values.tier)) {
-        setStatus('quoted')
-        formRef.current?.reset()
-        return
+      // 2. Upload files straight to private storage.
+      const jobs = picked.map((p, i) => ({ ...p, ...saved.uploads[i] }))
+      if (jobs.length) {
+        setStatus('uploading')
+        setProgress({ done: 0, total: jobs.length })
+        const failed = await uploadFiles(jobs, (done, total) => setProgress({ done, total }))
+        if (failed.length) {
+          setFailedUploads(failed)
+          setStatus('uploadError')
+          return
+        }
       }
 
-      // 2. Hand over to Stripe Checkout.
-      const payload = {
-        orderRef,
-        tierId: values.tier,
-        rush: values.urgency === 'rush',
-        extraRooms: canAddRooms(values.tier) ? Number(values.extraRooms) || 0 : 0,
-        name: values.name,
-        email: values.email,
-        address: values.address,
-      }
-      await pay(payload)
+      // 3. Quote, or on to payment.
+      await finish(saved.ref, saved.payable)
     },
   })
 
-  async function pay(payload) {
-    setPendingPayload(payload)
-    setPayError('')
+  async function finish(ref, payable) {
+    if (!payable) {
+      setStatus('quoted')
+      return
+    }
     setStatus('redirecting')
     try {
-      savePendingCheckout(payload) // lets the cancelled page offer "try again"
-      await startCheckout(payload) // navigates away on success
+      savePendingCheckout(ref)
+      await startCheckout(ref) // navigates away on success
     } catch (err) {
-      setPayError(err.message)
+      setErrorMessage(err.message)
       setStatus('payError')
     }
+  }
+
+  async function retryUploads() {
+    setStatus('uploading')
+    setProgress({ done: 0, total: failedUploads.length })
+    const failed = await uploadFiles(failedUploads, (done, total) => setProgress({ done, total }))
+    setFailedUploads(failed)
+    if (failed.length) setStatus('uploadError')
+    else await finish(order.ref, order.payable)
   }
 
   const values = formik.values
@@ -213,7 +222,7 @@ export default function PlaceOrder() {
 
   if (status === 'quoted') {
     return (
-      <Notice label="Quote request received" title="We'll send your quote.">
+      <Notice label={`Quote request ${order?.ref ?? ''}`} title="We'll send your quote.">
         An estimator will review the file and email you a quote and a secure
         payment link, usually within one business day. Work starts once the
         quote is accepted and paid.
@@ -221,19 +230,37 @@ export default function PlaceOrder() {
     )
   }
 
+  if (status === 'uploadError') {
+    return (
+      <Notice label={`Order ${order?.ref ?? ''}`} title="Some files did not upload.">
+        <span className="block">
+          Your order is saved, but {failedUploads.length === 1 ? '1 file' : `${failedUploads.length} files`} did
+          not upload: {failedUploads.map((f) => f.file.name).join(', ')}.
+        </span>
+        <span className="mt-6 flex flex-wrap justify-center gap-4">
+          <button type="button" onClick={retryUploads} className={noticePrimary}>
+            Try those files again
+          </button>
+          <button type="button" onClick={() => finish(order.ref, order.payable)} className={noticeSecondary}>
+            Continue without them
+          </button>
+        </span>
+        <span className="mt-4 block text-sm text-ink-dim">
+          You can also email missing files to {SITE.email} with your order reference.
+        </span>
+      </Notice>
+    )
+  }
+
   if (status === 'payError') {
     return (
-      <Notice label={`Order ${pendingPayload?.orderRef ?? ''}`} title="Your files reached us, but payment did not start.">
-        <span className="block">{payError}</span>
+      <Notice label={`Order ${order?.ref ?? ''}`} title="Your order is saved, but payment did not start.">
+        <span className="block">{errorMessage}</span>
         <span className="mt-6 flex flex-wrap justify-center gap-4">
-          <button
-            type="button"
-            onClick={() => pay(pendingPayload)}
-            className="bg-brass px-6 py-3 text-sm font-medium text-paper transition-colors hover:bg-ink-heading"
-          >
+          <button type="button" onClick={() => finish(order.ref, true)} className={noticePrimary}>
             Try payment again
           </button>
-          <a href={`mailto:${SITE.email}?subject=Order ${pendingPayload?.orderRef ?? ''}`} className="border border-line px-6 py-3 text-sm font-medium text-ink-body hover:border-ink-heading">
+          <a href={`mailto:${SITE.email}?subject=Order ${order?.ref ?? ''}`} className={noticeSecondary}>
             Email us instead
           </a>
         </span>
@@ -241,9 +268,10 @@ export default function PlaceOrder() {
     )
   }
 
-  const busy = status === 'sending' || status === 'redirecting'
+  const busy = ['saving', 'uploading', 'redirecting'].includes(status)
   const submitLabel =
-    status === 'sending' ? 'Sending your files…'
+    status === 'saving' ? 'Saving your order…'
+      : status === 'uploading' ? `Uploading files ${progress.done} of ${progress.total}…`
       : status === 'redirecting' ? 'Opening secure checkout…'
         : !values.tier ? 'Continue' : payable ? `Continue to payment, ${formatUSD(total)}` : 'Request a quote'
 
@@ -290,12 +318,6 @@ export default function PlaceOrder() {
             autoComplete="off"
             aria-hidden="true"
           />
-          {/* Sent with the order email so the office can match it to the payment */}
-          <input ref={consentAtRef} type="hidden" name="consent_at" defaultValue="" />
-          <input ref={orderRefInput} type="hidden" name="order_ref" defaultValue="" />
-          <input type="hidden" name="tier_label" value={tier ? tier.name : 'Not sure yet'} readOnly />
-          <input type="hidden" name="order_total" value={payable ? formatUSD(total) : 'Quote requested'} readOnly />
-          <input type="hidden" name="payment_status" value={payable ? 'Awaiting payment, do not start until the payment email arrives' : 'Quote requested'} readOnly />
 
           <fieldset className="grid gap-6 sm:grid-cols-2">
             <legend className={`${legendClass} sm:col-span-2`}>1. Contact</legend>
@@ -373,7 +395,7 @@ export default function PlaceOrder() {
               name="images"
               accept="image/*"
               multiple
-              hint={`Up to ${formatSize(EMAILJS.attachmentLimitKb * 1024)} in total across all uploads. For full photo sets, use a link.`}
+              hint="Photos of the affected areas. Select as many as you need (up to 40, 50 MB each)."
             />
             <Field
               label="Or a link to your photos"
@@ -381,7 +403,7 @@ export default function PlaceOrder() {
               formik={formik}
               type="url"
               placeholder="Encircle, Matterport, or shared drive link"
-              hint="Best for full photo sets. Images or a link: one of the two is required."
+              hint="Images or a link: one of the two is required."
             />
             {attachmentError && (
               <p className="text-sm text-red-700 sm:col-span-2" role="alert">{attachmentError}</p>
@@ -432,7 +454,7 @@ export default function PlaceOrder() {
 
             {status === 'error' && (
               <p className="mt-4 text-sm text-red-700" role="alert">
-                The order did not send and you have not been charged. Please try again, or email the details to {SITE.email}.
+                {errorMessage || 'The order did not send.'} You have not been charged. If it keeps failing, email the details to {SITE.email}.
               </p>
             )}
           </fieldset>
@@ -483,6 +505,9 @@ function OrderSummary({ tierChosen, tier, items, total, payable, className = '' 
     </div>
   )
 }
+
+const noticePrimary = 'bg-brass px-6 py-3 text-sm font-medium text-paper transition-colors hover:bg-ink-heading'
+const noticeSecondary = 'border border-line px-6 py-3 text-sm font-medium text-ink-body hover:border-ink-heading'
 
 function Notice({ label, title, children }) {
   return (

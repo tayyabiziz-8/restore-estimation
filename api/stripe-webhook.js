@@ -1,18 +1,18 @@
-import { getStripe } from './_lib/stripe.js'
+import { getStripe, siteUrl } from './_lib/stripe.js'
+import { getSupabaseAdmin } from './_lib/supabase.js'
+import { sendAlert, adminLink } from './_lib/alert.js'
+import { formatUSD } from '../src/data/pricing.js'
 
 /**
  * POST /api/stripe-webhook
- * Stripe calls this after payment events. It is the ONLY trustworthy
- * "this order is paid" signal (the success page redirect can be skipped or
- * faked). Each event emails the office via EmailJS's REST API so the
- * estimator knows the order can start.
- *
- * Stripe retries failed deliveries, so the same event can arrive twice.
- * The email subject includes the order ref, which makes duplicates obvious.
+ * The only trustworthy "paid" signal. Updates the order in the database,
+ * then emails the office. The status change doubles as de-duplication:
+ * Stripe may deliver an event twice, but only the first one changes the
+ * row, so only one alert goes out.
  */
 export async function POST(request) {
   const signature = request.headers.get('stripe-signature')
-  const rawBody = await request.text() // must be the raw text for signature checks
+  const rawBody = await request.text() // raw text is required for the signature check
 
   let event
   try {
@@ -23,64 +23,66 @@ export async function POST(request) {
   }
 
   const session = event.data.object
-  let paymentStatus = null
+  const ref = session.client_reference_id || session.metadata?.order_ref
+  let change = null
 
   switch (event.type) {
     case 'checkout.session.completed':
-      // Cards are paid immediately. Bank debits (ACH) complete later and
-      // arrive as async_payment_succeeded or async_payment_failed.
-      paymentStatus = session.payment_status === 'paid' ? 'PAID, start work' : 'Processing (bank payment), do not start yet'
+      change = session.payment_status === 'paid'
+        ? { to: 'paid', from: ['awaiting_payment', 'payment_failed', 'payment_processing'], alert: 'PAID, start work' }
+        : { to: 'payment_processing', from: ['awaiting_payment', 'payment_failed'], alert: null } // bank debit, clears later
       break
     case 'checkout.session.async_payment_succeeded':
-      paymentStatus = 'PAID (bank payment cleared), start work'
+      change = { to: 'paid', from: ['awaiting_payment', 'payment_processing', 'payment_failed'], alert: 'PAID (bank payment cleared), start work' }
       break
     case 'checkout.session.async_payment_failed':
-      paymentStatus = 'Bank payment FAILED, contact the customer'
+      change = { to: 'payment_failed', from: ['awaiting_payment', 'payment_processing'], alert: 'Bank payment FAILED, contact the customer' }
       break
     default:
       return Response.json({ received: true, ignored: event.type })
   }
+  if (!ref) return Response.json({ received: true, ignored: 'no order ref' })
 
+  const update = { status: change.to, stripe_session_id: session.id, stripe_livemode: session.livemode }
+  if (session.payment_intent) update.stripe_payment_intent = session.payment_intent
+  if (change.to === 'paid') update.paid_at = new Date().toISOString()
+
+  let rows
   try {
-    await notifyOffice(session, paymentStatus)
+    const { data, error } = await getSupabaseAdmin()
+      .from('orders')
+      .update(update)
+      .eq('ref', ref)
+      .in('status', change.from)
+      .select('ref, name, email, address, amount_cents')
+    if (error) throw error
+    rows = data
   } catch (err) {
-    // A 500 makes Stripe retry later, so a temporary email outage does not
-    // lose the notification.
-    console.error('Payment notification failed', err)
-    return new Response('Notification failed', { status: 500 })
+    // 500 makes Stripe retry later, so a database hiccup loses nothing.
+    console.error('Order update failed', err)
+    return new Response('Database update failed', { status: 500 })
   }
 
-  return Response.json({ received: true })
-}
-
-async function notifyOffice(session, paymentStatus) {
-  const params = {
-    order_ref: session.client_reference_id || session.metadata?.order_ref || 'unknown',
-    payment_status: paymentStatus,
-    amount: `$${((session.amount_total || 0) / 100).toFixed(2)}`,
-    customer_name: session.metadata?.customer_name || '',
-    customer_email: session.customer_details?.email || session.customer_email || '',
-    property_address: session.metadata?.property_address || '',
-    stripe_payment: session.payment_intent || session.id,
+  if (rows.length && change.alert) {
+    const o = rows[0]
+    let base = ''
+    try {
+      base = siteUrl(request)
+    } catch { /* link omitted */ }
+    await sendAlert({
+      subject: `${change.alert}: order ${o.ref}`,
+      replyTo: o.email,
+      message: [
+        `Order ${o.ref}: ${change.alert}`,
+        `Amount: ${formatUSD(session.amount_total ?? o.amount_cents ?? 0)}`,
+        '',
+        `Customer: ${o.name} (${o.email})`,
+        `Property: ${o.address}`,
+        '',
+        base ? `Open in admin: ${adminLink(base, o.ref)}` : '',
+      ].join('\n'),
+    })
   }
 
-  const { EMAILJS_SERVICE_ID, EMAILJS_PAYMENT_TEMPLATE_ID, EMAILJS_PUBLIC_KEY, EMAILJS_PRIVATE_KEY } = process.env
-  if (!EMAILJS_SERVICE_ID || !EMAILJS_PAYMENT_TEMPLATE_ID || !EMAILJS_PUBLIC_KEY || !EMAILJS_PRIVATE_KEY) {
-    // Not configured yet: log it so it still shows in Vercel's function logs.
-    console.log('Payment event (EmailJS not configured)', params)
-    return
-  }
-
-  const res = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      service_id: EMAILJS_SERVICE_ID,
-      template_id: EMAILJS_PAYMENT_TEMPLATE_ID,
-      user_id: EMAILJS_PUBLIC_KEY,
-      accessToken: EMAILJS_PRIVATE_KEY,
-      template_params: params,
-    }),
-  })
-  if (!res.ok) throw new Error(`EmailJS ${res.status}: ${await res.text()}`)
+  return Response.json({ received: true, updated: rows.length })
 }

@@ -133,10 +133,13 @@ src/
 ```
 
 
-## EmailJS
+## Orders backend, admin and emails
 
-Full setup, plan choice and copy-paste templates: `docs/emailjs-setup.md`.
-IDs are read from `VITE_EMAILJS_*` env vars (`src/lib/emailjs.js`).
+Orders are saved in Supabase (database + private file storage) by
+`/api/orders`; staff manage them at `/admin`. EmailJS sends only the
+contact form and short alert emails. Full setup, free-plan notes and
+copy-paste templates: `docs/backend-setup.md`. Schema:
+`supabase/schema.sql`.
 
 ## Stripe payments
 

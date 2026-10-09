@@ -143,27 +143,54 @@ service and an add-on.
   form is not lost. `consent` and `consent_at` (ISO timestamp) are sent with
   each submission as the consent record.
 
-Both forms use Formik + Yup, boxed inputs (visible borders), inline errors, a
-honeypot field, and EmailJS.
+Both forms use Formik + Yup, boxed inputs (visible borders), inline errors
+and a honeypot field. Contact goes through EmailJS; orders through /api.
 
 - `ContactForm.jsx` (Home page): name, email, message. Uses `emailjs.send`.
 - `PlaceOrder.jsx`: 1 contact, 2 property and order (incl. turnaround),
-  3 scope notes/images/measurements, 4 notes, then the agreement checkbox. Uses `emailjs.sendForm` so file inputs go out as attachments.
+  3 scope notes/images/measurements, 4 notes, then the agreement checkbox.
+  Saves through `/api/orders` and uploads files to Supabase (see Orders
+  backend), not EmailJS.
   - Scope notes can be typed (textarea) or attached as a file or photo.
   - Also asks for a measurements file and images.
   - **At least one of Images or a Link to photos is required.** This is
     checked manually in `onSubmit` (file inputs are not Formik state), with an
     inline error and scroll to the field.
-- EmailJS IDs come from `VITE_EMAILJS_*` env vars via `src/lib/emailjs.js`
-  (public by design; the private key is server-only). Setup guide and
-  copy-paste templates (contact, order with Form File Attachments,
-  payment): `docs/emailjs-setup.md`. Free plan is not enough (2 templates,
-  no attachments); Professional ($15, 2 MB) recommended.
-- Attachments travel inside the email, so the order form checks the total
-  file size against `VITE_EMAILJS_ATTACHMENT_LIMIT_KB` (default 2048) and
-  asks for a photo link when over. Photo links are the recommended path
-  for full photo sets. If bigger uploads are ever needed, move files to
-  storage (e.g. Vercel Blob) and email links instead.
+- EmailJS (free plan, 2 templates) now only sends the contact form
+  (browser, `VITE_EMAILJS_*` via `src/lib/emailjs.js`) and server alerts
+  (`EMAILJS_*`, generic Alert template). Orders do not go through EmailJS.
+
+## Orders backend and admin (v16)
+
+- Supabase (free plan for now): `orders`, `order_files`, `admins` tables
+  and a private `order-files` bucket, all in `supabase/schema.sql`
+  (re-runnable). RLS: public never touches tables; signed-in users in
+  `admins` can read all, update only `status` and `admin_notes`
+  (column grants), delete. Server uses the service role key.
+- Flow: `POST /api/orders` validates (shared lists in
+  `src/data/orderOptions.js` and `src/data/pricing.js`), creates the row
+  with a server-generated ref, inserts file rows and returns signed upload
+  tokens; browser uploads via `uploadToSignedUrl` (supabase-js loaded on
+  demand, `src/lib/supabaseClient.js`), 3 at a time, 2 retries, with an
+  "upload failed" recovery screen. Then `/api/create-checkout-session`
+  takes only `{ ref }` and prices from the saved order. Quotes send an
+  alert immediately. Webhook moves status (paid / payment_processing /
+  payment_failed) with a status precondition, which also de-duplicates
+  alerts, then emails via `api/_lib/alert.js` (EmailJS REST, one generic
+  "Alert" template). Alert failures are logged, never block.
+- Statuses: awaiting_payment, payment_processing, payment_failed,
+  quote_requested, paid, in_progress, delivered, cancelled, refunded.
+- `/admin` (`src/pages/admin/Admin.jsx`, lazy chunk, outside the site
+  layout): Supabase email+password sign-in, forgot/reset password, admin
+  check, view tabs (Needs action, In progress, Unpaid, Delivered, Closed,
+  All) with counts, search, table on md+ / cards on phones, detail panel
+  (status, internal notes, customer, order, Stripe link, photo previews
+  and file downloads via 1-hour signed URLs, delete order + files).
+  Emailed links use `/admin?order=REF`. Refreshes every 60s.
+- Uploads: up to 50 MB per file (free plan cap), 3 scope notes, 5
+  measurements, 40 images. EmailJS attachment limits no longer matter.
+- Setup steps: `docs/backend-setup.md`. Free Supabase pauses after 7
+  idle days: upgrade to Pro before relying on it.
 
 ## Payments (Stripe, v8)
 
@@ -351,3 +378,6 @@ CONTEXT.md                   this file
   contractors, public adjusters and homeowners". Order form no longer
   preselects Total Loss: tier starts empty ("Select a tier", required);
   `?tier=` from Pricing still preselects.
+- v16 Orders backend: Supabase database + private file storage, /api/orders,
+  checkout by ref, webhook updates DB, /admin dashboard. Mobile navbar shows
+  a stacked RESTORE / ESTIMATION wordmark next to the logo.

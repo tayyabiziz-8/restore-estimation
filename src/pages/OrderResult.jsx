@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { SITE } from '../siteConfig'
 import { formatUSD } from '../data/pricing'
 import usePageMeta from '../lib/usePageMeta'
-import { clearPendingCheckout, loadPendingCheckout, startCheckout } from '../lib/checkout'
+import { clearPendingCheckout, startCheckout } from '../lib/checkout'
 
 function Shell({ label, title, children }) {
   return (
@@ -84,10 +84,9 @@ export function OrderCancelled() {
   usePageMeta({ title: 'Payment not completed', noindex: true })
   const [params] = useSearchParams()
   const ref = params.get('ref') || ''
-  const [pending] = useState(() => {
-    const saved = loadPendingCheckout()
-    return saved && saved.orderRef === ref ? saved : null
-  })
+  // The server re-checks the order before reopening checkout, so a valid
+  // looking ref is enough to offer the button (works from any device).
+  const [pending] = useState(() => (/^RE-\d{6}-[A-Z0-9]{4}$/.test(ref) ? ref : null))
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
@@ -105,8 +104,8 @@ export function OrderCancelled() {
   return (
     <Shell label={ref ? `Order ${ref}` : 'Checkout'} title="Payment not completed.">
       <p>
-        You have not been charged. Your order details and files reached us,
-        but we only start work once the order is paid.
+        You have not been charged. Your order and files are saved, but we
+        only start work once the order is paid.
       </p>
       <div className="flex flex-wrap justify-center gap-4 pt-4">
         {pending && (

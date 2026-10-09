@@ -25,3 +25,12 @@ export function siteUrl(request) {
 }
 
 export const ORDER_REF_PATTERN = /^RE-\d{6}-[A-Z0-9]{4}$/
+
+// Server-generated order reference, e.g. RE-261007-K7QZ.
+// No 0/O/1/I so it reads cleanly over the phone.
+export function newOrderRef(date = new Date()) {
+  const yymmdd = date.toISOString().slice(2, 10).replaceAll('-', '')
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  const bytes = crypto.getRandomValues(new Uint8Array(4))
+  return `RE-${yymmdd}-${Array.from(bytes, (b) => alphabet[b % alphabet.length]).join('')}`
+}
