@@ -1,6 +1,6 @@
 // Short "something needs attention" emails to the office, sent from the
-// server through EmailJS's REST API. One generic template:
-//   Subject: {{subject}}   Reply-To: {{reply_to}}   Body: {{message}}
+// server through EmailJS's REST API. Works with the prebuilt "Contact Us"
+// template (see the params below), the same template the contact form uses.
 // Failures are logged, never thrown: the order is already safe in the
 // database and visible in /admin, so a missed alert loses nothing.
 
@@ -19,7 +19,19 @@ export async function sendAlert({ subject, message, replyTo = '' }) {
         template_id: EMAILJS_ALERT_TEMPLATE_ID,
         user_id: EMAILJS_PUBLIC_KEY,
         accessToken: EMAILJS_PRIVATE_KEY,
-        template_params: { subject, message, reply_to: replyTo },
+        template_params: {
+          // Fits EmailJS's prebuilt "Contact Us" template unedited:
+          // {{title}} in the subject, {{name}} / {{time}} / {{message}} in
+          // the body, {{email}} as Reply-To (the customer).
+          title: subject,
+          name: 'Restore Estimation website',
+          email: replyTo,
+          time: new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }) + ' ET',
+          message,
+          // also kept for custom templates
+          subject,
+          reply_to: replyTo,
+        },
       }),
     })
     if (!res.ok) throw new Error(`EmailJS ${res.status}: ${await res.text()}`)

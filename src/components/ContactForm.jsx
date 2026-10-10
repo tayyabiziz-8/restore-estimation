@@ -36,13 +36,23 @@ export default function ContactForm() {
         await emailjs.send(
           EMAILJS.serviceId,
           EMAILJS.contactTemplateId,
-          {
-            from_name: values.name,
-            from_email: values.email,
-            message: values.message,
-            consent: 'Yes',
-            consent_at: new Date().toISOString(),
-          },
+          (() => {
+            const consentAt = new Date().toISOString()
+            return {
+              // Names used by EmailJS's prebuilt "Contact Us" template, so it
+              // works unedited: {{name}}, {{email}}, {{title}}, {{time}}, {{message}}
+              name: values.name,
+              email: values.email,
+              title: `Website message from ${values.name}`,
+              time: new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }) + ' ET',
+              message: `${values.message}\n\n(Agreed to be contacted under the Privacy Policy at ${consentAt}.)`,
+              // also kept for custom templates
+              from_name: values.name,
+              from_email: values.email,
+              consent: 'Yes',
+              consent_at: consentAt,
+            }
+          })(),
           { publicKey: EMAILJS.publicKey }
         )
         setStatus('sent')

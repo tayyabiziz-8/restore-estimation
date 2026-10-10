@@ -49,32 +49,32 @@ project **pauses after 7 days with no activity**. While paused, orders
 fail. Unpause from the dashboard, and move to Pro ($25/mo) before real
 customers depend on it.
 
-## 2. EmailJS (free plan: 2 templates, which is exactly what we need)
+## 2. EmailJS (free plan)
 
-1. emailjs.com > **Email Services > Add New Service > Gmail** (Google
-   Workspace) or Outlook 365, signed in as admin@restoreestimation.com.
-   Copy the **Service ID**.
-2. **Template 1, Contact** (Email Templates > Create New Template):
-   - Subject `Website message from {{from_name}}`
-   - To Email `admin@restoreestimation.com`, Reply To `{{from_email}}`
-   - Content:
-     ```
-     Name: {{from_name}}
-     Email: {{from_email}}
+EmailJS makes you start from one of its prebuilt templates. That is fine:
+the site sends its data using the variable names of the prebuilt
+**Contact Us** template, so it works without editing the body. One
+template can serve both the contact form and the order alerts.
 
-     {{message}}
+1. **Email Services > Add New Service > Gmail** (Google Workspace) or
+   Outlook 365, signed in as admin@restoreestimation.com. Copy the
+   **Service ID**.
+2. **Email Templates > Create New Template > Contact Us**. In its
+   **Settings** tab check only:
+   - **To Email**: `admin@restoreestimation.com`
+   - **Reply To**: `{{email}}` (usually already set)
+   Leave Subject and Content as they are. Save, copy the **Template ID**.
+3. Optional: create a second **Contact Us** template the same way for the
+   alerts, if you want them to look different later. Otherwise use the same
+   Template ID for both.
+4. **Account > General**: copy the **Public Key**. **Account > Security**:
+   turn on **Allow EmailJS API for non-browser applications**, copy the
+   **Private Key**.
 
-     Consent to be contacted: {{consent}} at {{consent_at}}
-     ```
-3. **Template 2, Alert** (used by the server for quote requests and
-   payments):
-   - Subject `{{subject}}`
-   - To Email `admin@restoreestimation.com`, Reply To `{{reply_to}}`
-   - Content: `{{message}}`
-4. **Account > General**: copy the **Public Key**.
-   **Account > Security**: turn on **Allow EmailJS API for non-browser
-   applications**, copy the **Private Key**. (Allowed-domains lists are a
-   paid feature; not needed now.)
+What arrives: contact messages with the customer's name, message and time;
+alerts titled like "PAID, start work: order RE-261009-EC4P" or "Quote
+request RE-...", with the order details and an admin link in the message.
+Replying to either email goes to the customer.
 
 If EmailJS is not set up, nothing breaks: orders are still saved and
 visible in `/admin`, the alert text just goes to the Vercel logs.
@@ -91,10 +91,10 @@ and Preview (use the same values for now):
 | `SUPABASE_URL` | Supabase Project URL |
 | `SUPABASE_SERVICE_ROLE_KEY` | service_role / secret key (**secret**) |
 | `VITE_EMAILJS_SERVICE_ID` | EmailJS Service ID |
-| `VITE_EMAILJS_CONTACT_TEMPLATE_ID` | Contact template ID |
+| `VITE_EMAILJS_CONTACT_TEMPLATE_ID` | Contact Us template ID |
 | `VITE_EMAILJS_PUBLIC_KEY` | EmailJS Public Key |
 | `EMAILJS_SERVICE_ID` | same Service ID |
-| `EMAILJS_ALERT_TEMPLATE_ID` | Alert template ID |
+| `EMAILJS_ALERT_TEMPLATE_ID` | same Template ID (or the second one) |
 | `EMAILJS_PUBLIC_KEY` | same Public Key |
 | `EMAILJS_PRIVATE_KEY` | EmailJS Private Key (**secret**) |
 

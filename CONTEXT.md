@@ -158,7 +158,10 @@ and a honeypot field. Contact goes through EmailJS; orders through /api.
     inline error and scroll to the field.
 - EmailJS (free plan, 2 templates) now only sends the contact form
   (browser, `VITE_EMAILJS_*` via `src/lib/emailjs.js`) and server alerts
-  (`EMAILJS_*`, generic Alert template). Orders do not go through EmailJS.
+  (`EMAILJS_*`). Orders do not go through EmailJS. EmailJS only offers
+  prebuilt templates, so params match the prebuilt "Contact Us" template
+  ({{name}}, {{email}}, {{title}}, {{time}}, {{message}}); one template can
+  serve both contact and alerts. Old names are sent too.
 
 ## Orders backend and admin (v16)
 
