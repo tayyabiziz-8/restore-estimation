@@ -23,7 +23,7 @@ export const TIERS = [
     includedRooms: 6,
     highlight: true,
     body: 'Multi-room losses with mixed trades. Our standard package for most restoration jobs.',
-    features: ['Up to 6 rooms / areas', 'Xactimate estimate + sketch', 'Photo packet', 'Moisture / char log', '48-hr turnaround'],
+    features: ['Up to 6 rooms / areas', 'Xactimate estimate + sketch', 'Photo packet', '48-hr turnaround'],
   },
   {
     id: 'roof',

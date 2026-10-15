@@ -7,8 +7,8 @@ const services = [
   {
     code: 'S-01',
     title: 'Water damage estimating',
-    body: 'We estimate the cost to fix water damage from burst pipes, appliance leaks, and storms. We check moisture levels, list the damaged materials, and record the drying equipment used, written the way your insurance company expects.',
-    deliverables: ['Xactimate estimate', 'Moisture log', 'Photo packet'],
+    body: 'We estimate the cost to fix water damage from burst pipes, appliance leaks, and storms. We list the damaged materials, the drying equipment used, and the repairs needed, written the way your insurance company expects.',
+    deliverables: ['Xactimate estimate', 'Photo packet'],
   },
   {
     code: 'S-02',
@@ -20,7 +20,7 @@ const services = [
     code: 'S-03',
     title: 'Mold remediation estimating',
     body: 'We estimate the cost to remove mold safely. This covers containment, air cleaning, and removing damaged materials, based on current safety guidelines and local prices.',
-    deliverables: ['Xactimate estimate', 'Containment sketch'],
+    deliverables: ['Xactimate estimate', 'Photo packet'],
   },
   {
     code: 'S-04',

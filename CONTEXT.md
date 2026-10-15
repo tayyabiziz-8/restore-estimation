@@ -384,3 +384,8 @@ CONTEXT.md                   this file
 - v16 Orders backend: Supabase database + private file storage, /api/orders,
   checkout by ref, webhook updates DB, /admin dashboard. Mobile navbar shows
   a stacked RESTORE / ESTIMATION wordmark next to the logo.
+- v17 Stats: 10,000+ estimates with a count-up (`components/CountUp.jsx`,
+  starts when visible, eases out, width reserved, reduced motion shows the
+  final number). Not offered: moisture logs, containment sketches. Removed
+  from Services (S-01, S-03 now list Photo packet), the Total Loss tier
+  features and carousel slide 1. Do not re-add.

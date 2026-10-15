@@ -12,7 +12,7 @@ const slides = [
   {
     plate: 'Water damage',
     title: 'Water damage, documented room by room',
-    body: 'Moisture readings, affected materials, and drying equipment logged to Xactimate line-item standard.',
+    body: 'Affected materials, drying equipment, and repairs written to Xactimate line-item standard.',
     img: 'https://images.pexels.com/photos/18302377/pexels-photo-18302377.jpeg?auto=compress&cs=tinysrgb&w=1600&h=900&fit=crop',
   },
   {

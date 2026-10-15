@@ -4,6 +4,7 @@ import ContactForm from '../components/ContactForm'
 import SectionLabel from '../components/SectionLabel'
 import BlueprintHero from '../components/BlueprintHero'
 import Reveal from '../components/Reveal'
+import CountUp from '../components/CountUp'
 import { SITE } from '../siteConfig'
 import usePageMeta from '../lib/usePageMeta'
 
@@ -27,7 +28,7 @@ const steps = [
 
 const stats = [
   { value: '24–48 hours', label: 'Average turnaround time' },
-  { value: '3,100+', label: 'Estimates written' },
+  { count: 10000, suffix: '+', label: 'Estimates written' },
 ]
 
 export default function Home() {
@@ -109,7 +110,9 @@ export default function Home() {
         <div className="mx-auto grid max-w-site gap-8 px-6 py-10 sm:grid-cols-2 md:px-10 xl:px-16 sm:[&>*+*]:border-l sm:[&>*+*]:border-cream/10 sm:[&>*+*]:pl-8">
           {stats.map((s, i) => (
             <Reveal key={s.label} delay={i * 120} className="text-center sm:text-left">
-              <p className="font-display text-3xl text-brass-bright">{s.value}</p>
+              <p className="font-display text-3xl text-brass-bright">
+                {s.count ? <CountUp to={s.count} suffix={s.suffix} /> : s.value}
+              </p>
               <p className="mt-1 text-sm text-cream-dim">{s.label}</p>
             </Reveal>
           ))}
