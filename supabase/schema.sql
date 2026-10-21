@@ -89,10 +89,21 @@ drop policy if exists "read own admin row" on public.admins;
 create policy "read own admin row" on public.admins
   for select to authenticated using (user_id = auth.uid());
 
--- Admins may only edit the workflow columns, never prices or payment data.
-revoke update on public.orders from anon, authenticated;
+-- Explicit table privileges. Supabase stops granting these automatically
+-- for new tables (from Oct 30, 2026), so they are spelled out here. They
+-- are the first lock; the RLS policies above are the second.
+--   anon (public website): nothing at all.
+--   authenticated (signed-in admins): read, delete, and update only the
+--     workflow columns, never prices or payment data.
+--   service_role (the /api server functions): everything.
+revoke all on public.orders, public.order_files, public.admins from anon, authenticated;
+
+grant select, delete on public.orders to authenticated;
 grant update (status, admin_notes) on public.orders to authenticated;
-revoke all on public.orders, public.order_files, public.admins from anon;
+grant select on public.order_files to authenticated;
+grant select on public.admins to authenticated;
+
+grant select, insert, update, delete on public.orders, public.order_files, public.admins to service_role;
 
 -- ---------------------------------------------------------------- storage
 -- Private bucket: files are only reachable through short-lived signed links.

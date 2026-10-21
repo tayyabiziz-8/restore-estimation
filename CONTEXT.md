@@ -169,7 +169,10 @@ and a honeypot field. Contact goes through EmailJS; orders through /api.
   and a private `order-files` bucket, all in `supabase/schema.sql`
   (re-runnable). RLS: public never touches tables; signed-in users in
   `admins` can read all, update only `status` and `admin_notes`
-  (column grants), delete. Server uses the service role key.
+  (column grants), delete. Server uses the service role key. Table
+  grants are explicit in schema.sql (Supabase stopped auto-granting new
+  public tables on Oct 30, 2026): anon none, authenticated select/delete
+  + update(status, admin_notes), service_role full.
 - Flow: `POST /api/orders` validates (shared lists in
   `src/data/orderOptions.js` and `src/data/pricing.js`), creates the row
   with a server-generated ref, inserts file rows and returns signed upload
