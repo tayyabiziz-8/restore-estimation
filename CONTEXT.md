@@ -196,7 +196,10 @@ and a honeypot field. Contact goes through EmailJS; orders through /api.
 - Uploads: up to 50 MB per file (free plan cap), 3 scope notes, 5
   measurements, 40 images. EmailJS attachment limits no longer matter.
 - Setup steps: `docs/backend-setup.md`. Free Supabase pauses after 7
-  idle days: upgrade to Pro before relying on it.
+  idle days, so a Vercel Cron (`vercel.json` crons, daily 09:00 UTC) calls
+  `GET /api/keepalive`, which runs a head-only count on `orders`. Protected
+  by `CRON_SECRET` (Vercel sends it as a Bearer token). Remove the cron
+  once on Supabase Pro.
 
 ## Payments (Stripe, v8)
 
@@ -392,3 +395,5 @@ CONTEXT.md                   this file
   final number). Not offered: moisture logs, containment sketches. Removed
   from Services (S-01, S-03 now list Photo packet), the Total Loss tier
   features and carousel slide 1. Do not re-add.
+- v18 Explicit table grants in schema.sql; daily keepalive cron for the
+  free Supabase project.

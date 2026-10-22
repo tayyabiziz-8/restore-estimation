@@ -46,8 +46,11 @@ How it fits together:
 
 Free plan notes: about 500 MB database and 1 GB file storage, and the
 project **pauses after 7 days with no activity**. While paused, orders
-fail. Unpause from the dashboard, and move to Pro ($25/mo) before real
-customers depend on it.
+fail. A daily Vercel Cron Job (`/api/keepalive`, scheduled in
+`vercel.json`) runs one tiny query to keep it awake: add a `CRON_SECRET`
+env var (any long random string) and check Vercel > Project > Settings >
+Cron Jobs after the next deploy. Move to Pro ($25/mo, never paused)
+before real customers depend on it, then remove the cron.
 
 ## 2. EmailJS (free plan)
 
